@@ -7,6 +7,7 @@ import psycopg2
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv()) 
 
+# query to fetch the top K hired/rejected candidate info from the db
 QUERY = """
 WITH ranked_submissions AS (
   SELECT
@@ -93,7 +94,7 @@ WHERE rn = 1
 ORDER BY status_rank, job_name
 LIMIT 1;
 """
-
+# removes special/escaping characters
 def clean_text(value):
     if pd.isna(value):
         return value
@@ -104,7 +105,7 @@ def clean_text(value):
     value = re.sub(r'[\n\r\t]+', ' ', value)
     value = re.sub(r'\s+', ' ', value).strip()
     return value
-
+# there are two location field in the DB, this adds both together
 def _combine_locations(row):
     parts = []
     for col in ("location_preference", "location"):
@@ -117,6 +118,7 @@ def _combine_locations(row):
                 parts.append(seg)
     return ", ".join(parts)
 
+# establishes connection to the DB
 def get_connection(
     host=None, port=None, user=None, password=None, dbname=None, sslmode="require"
 ):      
@@ -128,6 +130,7 @@ def get_connection(
         dbname=dbname or os.getenv("PGDATABASE"),
     )
 
+# sends the Query quest, and stores the resonse in pd frames
 def fetch_dataframe(conn) -> pd.DataFrame:
     return pd.read_sql(QUERY, conn)
 
@@ -136,6 +139,7 @@ def transform_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         df[col] = df[col].map(clean_text)
 
     # Build API fields
+    # we map the DB fieds into the POST request BODY key fields
     df["notes"] = df["add_notes"]
     df["target_locations"] = df.apply(_combine_locations, axis=1)
     df["must_have_keyword"] = df["skills"]
@@ -161,10 +165,12 @@ def transform_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = df.where(pd.notna(df), None)
     return df
 
+# writes to the json file
 def save_results(df: pd.DataFrame, path: str = "results.json") -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(df.to_dict(orient="records"), f, ensure_ascii=False)
 
+# this function just calls the above things in order
 def fetch_and_save(
     out_path: str = "results.json",
     *,

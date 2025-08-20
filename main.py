@@ -4,13 +4,16 @@ import pandas as pd
 import json
 import requests
 
+# This calls the function in dbFetch.py, which fetches K candidate info and stores the JSON object array in result.json
 def fetch_db():
     df = fetch_and_save("results.json")
 
+# This calls the function in cvFetch_Parse.py, which parse the pdf CV into txt, and strips extra coding, and appends to the json object in result.json
 def fetch_cv_text():
     with open("results.json", "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # This part extracts the pdf (downloaded from url) to txt, and if successful, appends to the JSON object
     for entry in data:
         if entry.get("cv_url"):
             try:
@@ -20,11 +23,12 @@ def fetch_cv_text():
                 print(f"Failed to extract text for {entry['cv_url']}: {e}")
         else:
             entry["cvtext"] = None
-
+    # writes to the json file
     with open("results.json", "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
         
 def _none_to_empty(obj):
+    # This function just makes sure we are not getting nulls
     if isinstance(obj, dict):
         return {k: _none_to_empty(v) for k, v in obj.items()}
     if isinstance(obj, list):
@@ -35,7 +39,7 @@ def request_match():
     """Reads results.json and sends a match request for each entry."""
     with open("results.json", "r", encoding="utf-8") as f:
         data = json.load(f)
-
+    # for each JSON object in array, build the POST request BODY
     for entry in data:
         payload = {
             "job_description": entry.get("job_description", ""),
@@ -59,11 +63,12 @@ def request_match():
                 }
             ],
         }
-
+        # making sure we don't have null
         payload = _none_to_empty(payload) 
-
+        # sends the POST request
         resp = requests.post("http://localhost:8080/match", json=payload)
         print(f"person_id={entry.get('person_id')}, status={resp.status_code}")
+        # If the request is successful, we write the result to the txt log file
         try:
             resp_json = resp.json()
             with open("performance.txt", "a", encoding="utf-8") as log_file:

@@ -7,11 +7,14 @@ from pdfminer.high_level import extract_text
 URL = "google.com"
 
 def fetch_pdf_bytes(url: str) -> bytes:
+    # fetch data from the pdf url
     r = requests.get(url, timeout=60)
+    # check request status
     r.raise_for_status()
     return r.content
 
 def normalize_text(s: str) -> str:
+    # This function just removes special characters to make the txt plain
     if not s:
         return ""
     s = s.replace('\x00', '')
@@ -24,8 +27,11 @@ def normalize_text(s: str) -> str:
     return s
 
 def pdf_to_text(url: str) -> str:
+    # fetches pdf url
     pdf_bytes = fetch_pdf_bytes(url)
+    # convert into txt
     text = extract_text(BytesIO(pdf_bytes))
+    # strip special characters
     return normalize_text(text)
 
 if __name__ == "__main__":
